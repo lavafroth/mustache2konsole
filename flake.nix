@@ -1,21 +1,35 @@
 {
-  description = "devshell";
+  description = "flake for github:lavafroth/mustache2konsole";
 
   outputs =
-    { nixpkgs, ... }:
+    {
+      nixpkgs,
+      ...
+    }:
     let
       forAllSystems =
-        f: nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed (s: f nixpkgs.legacyPackages.${s});
+        f:
+        nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed (system: f nixpkgs.legacyPackages.${system});
     in
     {
+      packages = forAllSystems (pkgs: {
+        default = pkgs.pkgsStatic.rustPlatform.buildRustPackage {
+          pname = "mustache2konsole";
+          version = "1.1.0";
+
+          src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
+        };
+      });
+
       devShells = forAllSystems (pkgs: {
+
         default = pkgs.mkShell {
           packages = with pkgs; [
             stdenv.cc.cc
           ];
-
-          LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib";
         };
+
       });
     };
 }

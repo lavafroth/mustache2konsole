@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use hex::FromHex;
 use serde_json::Value;
 
 const GENERAL_SECTION: &str = "[General]
@@ -6,11 +7,15 @@ Description=Stylix
 Wallpaper=
 ";
 
-fn hex_to_rgb_csv(s: &str) -> Result<String> {
-    if let [r, g, b] = hex::decode(s)?.as_slice() {
-        return Ok(format!("{r},{g},{b}"));
+fn json_value_to_rgb(palette: &Value, color_name: &str) -> Result<String> {
+    let Some(color) = palette.get(color_name) else {
+        bail!("palette does not define color {color_name:?}");
     };
-    bail!("insufficient hex values for red green and blue color components in {s}");
+    let Some(color_hex) = color.as_str() else {
+        bail!("the color {color_name:?} is not defined as a string");
+    };
+    let [r, g, b] = <[u8; 3]>::from_hex(color_hex)?;
+    Ok(format!("{r},{g},{b}"))
 }
 
 fn main() -> Result<()> {
@@ -19,18 +24,9 @@ fn main() -> Result<()> {
     };
     let palette: Value = serde_json::from_str(&std::fs::read_to_string(path)?)?;
 
-    let mut colors = vec![];
-
-    for base in 0..16 {
-        let color_name = format!("base{base:02X}");
-        let Some(color) = palette.get(&color_name) else {
-            bail!("palette does not define color {color_name:?}");
-        };
-        let Some(color_str) = color.as_str() else {
-            bail!("the color {color_name:?} is not defined as a string");
-        };
-        colors.push(hex_to_rgb_csv(color_str)?);
-    }
+    let colors: Vec<_> = (0..16)
+        .map(|base| json_value_to_rgb(&palette, &format!("base{base:02X}")))
+        .collect::<Result<_>>()?;
 
     let sections: Vec<_> = [
         ("Background", 0),

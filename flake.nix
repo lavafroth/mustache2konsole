@@ -3,6 +3,7 @@
 
   outputs =
     {
+      self,
       nixpkgs,
       ...
     }:
@@ -31,5 +32,9 @@
         };
 
       });
+
+      overlays.default = final: prev: {
+        mustache2konsole = self.packages.${final.system}.default;
+      };
     };
 }
